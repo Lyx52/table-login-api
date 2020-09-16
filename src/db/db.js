@@ -19,7 +19,7 @@ const db = {
         }
     ),
     Sequelize: Sequelize,
-    ROLES: ["USER", "MODERATOR", "ADMIN"]
+    ROLES: ["USER", "MODERATOR", "ADMIN"] //TODO: Make this configurable?
 };
 db.user = require("./models/user.model")(db.sequelizer, Sequelize);
 db.role = require("./models/role.model")(db.sequelizer, Sequelize);

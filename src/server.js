@@ -8,7 +8,7 @@ const app = express();
 
 
 const corsOptions = {
-    orgin: "localhost:3000"
+    orgin: "localhost:3000" //TODO: Change cors domain based off config!
 };
 const Role = db.role;
 
@@ -21,6 +21,7 @@ db.sequelizer.sync({force: true}).then(() => {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
+//TODO: Don't use separate functions from files for this! Instead make each requirement export an express router!
 initAuthRoutes(app);
 initUserRoutes(app);
 
@@ -28,7 +29,7 @@ initUserRoutes(app);
 app.get('*', function(req, res){
     res.status(404);
     // respond with json
-    res.send({ error: '404 Page not found!' });
+    res.send({ error: '404 Page not found!' }); //TODO: fullfilled:false, also maybe use res.json?
 });
 
 // set port, listen for requests
@@ -37,7 +38,7 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}.`);
 });
 
-
+//TODO: Maybe move this to a separate file?
 function initRoles() {
     // Create table columns
     Role.create({

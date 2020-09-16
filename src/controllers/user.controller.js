@@ -21,6 +21,7 @@ exports.setTable = async (req, res) => {
     }
 };
 
+
 exports.getTable = (req, res) => {
     console.log("TABLE REQUEST");
     if (req.body.tableID) {
@@ -30,7 +31,7 @@ exports.getTable = (req, res) => {
         try {
             parsedTableID = parseInt(req.body.tableID)
         } catch (parsingError) {
-            res.status(400).json({fulfilled: false, message: parsingError});
+            res.status(400).json({fulfilled: false, message: parsingError}); //TODO: Error handler should handle this!!
         }
 
         // Limit table id to tables array range
@@ -42,9 +43,10 @@ exports.getTable = (req, res) => {
             try {
                 parsedRunNr = parseInt(req.body.runNr)
             } catch (parsingError) {
-                res.status(400).json({fulfilled: false, message: parsingError});
+                res.status(400).json({fulfilled: false, message: parsingError}); //TODO: Error handler should handle this!!
             }
 
+            //TODO: Yeah... nah. We should use the DB models for this!
             let query = `SELECT ID, VardsUzvards, DalibniekaNr, SkrejienaNr, Rezultats, MacibuIestade, DzimsanasGads FROM ${tables[tableID]} WHERE SkrejienaNr = ${parsedRunNr};`;
             db.sequelizer
                 .query(query, {type: QueryTypes.SELECT })
@@ -62,10 +64,10 @@ exports.getTable = (req, res) => {
                         res.status(200).json({fulfilled: true, data: reqResponse});
                 })
                 .catch(error => {
-                    res.status(400).json({fulfilled: false, message: error})
+                    res.status(400).json({fulfilled: false, message: error}) //TODO: Error handler should handle this!!
                 });
-        } else res.status(404).json({fulfilled: false, message: "Invalid run number!"});
-    } else res.status(404).json({fulfilled: false, message: "Invalid table id!"});
+        } else res.status(404).json({fulfilled: false, message: "Invalid run number!"}); //TODO: Error handler should handle this!!
+    } else res.status(404).json({fulfilled: false, message: "Invalid table id!"}); //TODO: Error handler should handle this!!
 };
 
 async function fulfillPromiseArray(promises) {
@@ -74,7 +76,7 @@ async function fulfillPromiseArray(promises) {
             console.log(response)
         })
         .catch(error => {
-            console.log(`Updating rows caused an error: ${error}`)
+            console.log(`Updating rows caused an error: ${error}`) //TODO: Error handler should handle this!!
         })
         .finally(() => {});
 }
@@ -91,7 +93,7 @@ const updateResult = async function(tableName, runNr, athleteNr, result) {
         try {
             athleteNr = parseInt(athleteNr);
         } catch (parsingException) {
-            return new Promise((reject) => reject(`Invalid athleteNr: ${athleteNr}`))
+            return new Promise((reject) => reject(`Invalid athleteNr: ${athleteNr}`)) //TODO: Error handler should handle this!!
         }
 
     // parse run number to integer
@@ -99,8 +101,8 @@ const updateResult = async function(tableName, runNr, athleteNr, result) {
         try {
             runNr = parseInt(runNr);
         } catch (parsingException) {
-            return new Promise((reject) => reject(`Invalid runNr: ${runNr}`))
+            return new Promise((reject) => reject(`Invalid runNr: ${runNr}`)) //TODO: Error handler should handle this!!
         }
-    let query = `UPDATE ${tableName.toString()} SET Rezultats = ${result} WHERE DalibniekaNr = ${athleteNr} AND SkrejienaNr = ${runNr};`;
+    let query = `UPDATE ${tableName.toString()} SET Rezultats = ${result} WHERE DalibniekaNr = ${athleteNr} AND SkrejienaNr = ${runNr};`; 
     return await db.sequelizer.query(query)
 };

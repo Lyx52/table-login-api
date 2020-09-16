@@ -5,7 +5,7 @@ const db = require("../db/db");
 const User = db.user;
 const Role = db.role;
 const Op = db.Sequelize.Op;
-const secretCode = "1337_SECRET_CODE_1337";
+const secretCode = "1337_SECRET_CODE_1337";  //TODO: ???
 
 exports.register = (req, res) => {
     // Create password with salt pre applied
@@ -28,17 +28,17 @@ exports.register = (req, res) => {
                     }
                 }).then(roles => {
                     user.setRoles(roles).then(() => {
-                        res.send({ message: "User was registered successfully!" });
+                        res.send({ message: "User was registered successfully!" }); //TODO: No fulfilled message?
                     });
                 });
             } else {
                 user.setRoles([1]).then(() => {
-                    res.status(200).send({ message: "User was registered successfully!" });
+                    res.status(200).send({ message: "User was registered successfully!" }); //TODO: No fulfilled message?
                 });
             }
         })
         .catch(err => {
-            res.status(500).send({ message: err.message });
+            res.status(500).send({ message: err.message }); //TODO: ERROR HANDLER!
         });
 };
 
@@ -52,11 +52,11 @@ exports.login = (req, res) => {
             .then(user => {
                 if (!user) {
                     console.log(`Username not found`);
-                    res.status(404).send({ fulfilled: false, message: "User not found!" });
+                    res.status(404).send({ fulfilled: false, message: "User not found!" }); //TODO: ERROR HANDLER!
                 } else {
 
                     // Compare password
-                    let passwordValid = cryptoUtils.compareHash(user.password, req.body.password, user.salt);
+                    let passwordValid = cryptoUtils.compareHash(user.password, req.body.password, user.salt); //TODO: Maybe use a dedicated hashing algorithm instead? Something like node-argon2?
                     if (!passwordValid) {
                         return res.status(401).send({
                             fulfilled: false,
@@ -89,12 +89,12 @@ exports.login = (req, res) => {
                             accessToken: authToken
                         };
 
-                        res.status(200).send(data);
+                        res.status(200).send(data);//TODO: No fulfilled message?
                     });
                 }
             })
             .catch(err => {
-                res.status(500).send({fulfilled: false, message: `Request failed with error: ${err}`});
+                res.status(500).send({fulfilled: false, message: `Request failed with error: ${err}`}); //TODO: ERROR HANDLER!
             });
-    } else res.status(400).send({fulfilled: false, message: "Malformed request!"})
+    } else res.status(400).send({fulfilled: false, message: "Malformed request!"}) //TODO: ERROR HANDLER!
 };

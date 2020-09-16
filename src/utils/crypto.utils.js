@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 
+//TODO: Maybe use a dedicated hashing algorithm instead? Something like node-argon2?
 const randomString = function(len){
     return crypto.randomBytes(Math.ceil(len/2))
         .toString('hex')
