@@ -23,7 +23,6 @@ app.use(bodyParser.json());
 
 initAuthRoutes(app);
 initUserRoutes(app);
-
 // 404 Last route initialized
 app.get('*', function(req, res){
     res.status(404);

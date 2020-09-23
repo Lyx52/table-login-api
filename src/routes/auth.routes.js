@@ -1,5 +1,5 @@
 const controllers = require("../controllers/auth.controllers");
-const {checkRolesExisted, checkDuplicateUsernameOrEmail} = require("../middleware/auth.verify");
+const {checkRolesExisted, checkDUplicateUsername} = require("../middleware/auth.verify");
 const initAuthRoutes = function(app) {
     app.use(function(req, res, next) {
         res.header(
@@ -11,7 +11,7 @@ const initAuthRoutes = function(app) {
 
     app.post("/api/auth/register",
         [
-            checkDuplicateUsernameOrEmail,
+            checkDUplicateUsername,
             checkRolesExisted
         ], controllers.register);
 

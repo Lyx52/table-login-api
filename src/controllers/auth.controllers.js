@@ -8,15 +8,16 @@ const Op = db.Sequelize.Op;
 const secretCode = "1337_SECRET_CODE_1337";
 
 exports.register = (req, res) => {
+
     // Create password with salt pre applied
     let salt = cryptoUtils.randomString(32);
     // Save User to Database
     let userData = {
         username: req.body.username,
-        email: req.body.email,
         password: cryptoUtils.sha256(req.body.password, salt),
         salt: salt
     };
+    console.log(`REGISTED USER ${req.body.username} WITH PASSWORD ${userData.password}`)
     User.create(userData)
         .then(user => {
             if (req.body.roles) {
@@ -57,6 +58,7 @@ exports.login = (req, res) => {
 
                     // Compare password
                     let passwordValid = cryptoUtils.compareHash(user.password, req.body.password, user.salt);
+                    console.log(`LOGGING IN USER ${req.body.username} WITH PASSWORD ${req.body.password} PASSWORD VALID ${passwordValid}`)
                     if (!passwordValid) {
                         return res.status(401).send({
                             fulfilled: false,

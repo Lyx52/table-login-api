@@ -9,7 +9,7 @@ const db = {
             host: config.HOST,
             dialect: config.dialect,
             operatorsAliases: false,
-
+            logging: config.logging,
             pool: {
                 max: config.pool.max,
                 min: config.pool.min,

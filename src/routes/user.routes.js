@@ -1,6 +1,7 @@
 const controller = require("../controllers/user.controller");
 const {verifyToken, isAdminOrModerator, isAdmin} = require("../middleware/auth.jwt");
 const initUserRoutes = function(app) {
+
     app.use(function(req, res, next) {
         res.header(
             "Access-Control-Allow-Headers",
@@ -28,8 +29,31 @@ const initUserRoutes = function(app) {
 
     // Update table
     app.post("/api/set/table",
-        [verifyToken, isAdminOrModerator], // Only moderators and admins can verify table
+        [verifyToken, isAdminOrModerator],
         controller.setTable
+    );
+    app.post("/api/delete/table",
+         [verifyToken, isAdminOrModerator],
+        controller.deleteRows
+    );
+    app.post("/api/insert/table",
+        [verifyToken, isAdminOrModerator],
+        controller.insertRows
+    );
+    app.post("/api/insert/school",
+        [verifyToken, isAdmin],
+        controller.insertSchool
+    );
+    app.get("/api/get/school",
+        controller.getSchools
+    );
+    app.post("/api/delete/school",
+        [verifyToken, isAdmin],
+        controller.deleteSchools
+    );
+    app.get("/api/get/results",
+        [verifyToken, isAdminOrModerator],
+        controller.getSchoolResults
     );
 };
 module.exports = {
