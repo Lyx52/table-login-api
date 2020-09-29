@@ -13,11 +13,11 @@
 // };
 module.exports = {
     HOST: "localhost",
-    USER: "admin",
-    PASSWORD: "Qwerty2@",
-    DB: "SiteUsers",
+    USER: process.env.DB_USER,
+    PASSWORD: process.env.DB_PASS,
+    DB: process.env.DB_NAME || "OTableSite",
     dialect: "mysql",
-    logging: false,
+    logging: true,
     pool: {
         max: 3,
         min: 0,

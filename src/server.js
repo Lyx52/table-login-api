@@ -5,17 +5,30 @@ const db = require("./db/db");
 const {initAuthRoutes} = require("./routes/auth.routes");
 const {initUserRoutes} = require("./routes/user.routes");
 const app = express();
-
+const authController = require('./controllers/auth.controllers');
+const mysql = require('mysql2/promise');
 
 const corsOptions = {
-    orgin: "localhost:3000"
+    orgin: process.env.ORGIN || "localhost:3000"
 };
 const Role = db.role;
 
-db.sequelizer.sync({force: true}).then(() => {
-    console.log('Drop and Re-sync Database');
-    initRoles();
-});
+mysql.createConnection({
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS
+}).then(connection => {
+    connection.query(`CREATE DATABASE IF NOT EXISTS ${db.db_config.DB};`).then(() => {
+        db.sequelizer.sync({force: (process.env.FORCE_SYNC || false)}).then(() => {
+            console.log('Drop and Re-sync Database');
+            initRoles();
+        });
+    })
+})
+.catch(con_err => {
+    console.log(con_err)
+    process.exit(1)
+})
+
 
 // Setup express dependencies
 app.use(cors(corsOptions));
@@ -37,7 +50,7 @@ app.listen(PORT, () => {
 });
 
 
-function initRoles() {
+async function initRoles() {
     // Create table columns
     Role.create({
         id: 1,
@@ -51,4 +64,6 @@ function initRoles() {
         id: 3,
         name: "admin"
     });
+    if (process.env.CREATE_ADMINISTRATOR)
+        await authController.createAdministrator();
 }

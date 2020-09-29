@@ -10,27 +10,12 @@ const initUserRoutes = function(app) {
         next();
     });
 
-    // Test if user is a mod
-    app.get(
-        "/api/test/mod",
-        [verifyToken, isAdminOrModerator],
-        controller.isModerator
-    );
-
-    // Test if user is an admin
-    app.get(
-        "/api/test/admin",
-        [verifyToken, isAdmin],
-        controller.isAdmin
-    );
-
-    // Get public table view
+    /* TABLE EDIT/REMOVE/VIEW/UPDATE */
     app.post("/api/get/table", controller.getTable);
 
-    // Update table
     app.post("/api/set/table",
         [verifyToken, isAdminOrModerator],
-        controller.setTable
+        controller.saveTable
     );
     app.post("/api/delete/table",
          [verifyToken, isAdminOrModerator],
@@ -38,21 +23,24 @@ const initUserRoutes = function(app) {
     );
     app.post("/api/insert/table",
         [verifyToken, isAdminOrModerator],
-        controller.insertRows
+        controller.insertRow
     );
+
+    /* DASHBOARD SCHOOL TAB */
     app.post("/api/insert/school",
         [verifyToken, isAdmin],
         controller.insertSchool
     );
-    app.get("/api/get/school",
+    app.get("/api/get/schools",
         controller.getSchools
     );
-    app.post("/api/delete/school",
+    app.post("/api/delete/schools",
         [verifyToken, isAdmin],
         controller.deleteSchools
     );
-    app.get("/api/get/results",
-        [verifyToken, isAdminOrModerator],
+
+    /* RESULT TABLE */
+    app.post("/api/get/results",
         controller.getSchoolResults
     );
 };

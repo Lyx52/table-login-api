@@ -18,11 +18,26 @@ const db = {
             }
         }
     ),
+    db_config: config,
     Sequelize: Sequelize,
     ROLES: ["USER", "MODERATOR", "ADMIN"]
-};
+}
+
 db.user = require("./models/user.model")(db.sequelizer, Sequelize);
 db.role = require("./models/role.model")(db.sequelizer, Sequelize);
+db.school = require("./models/school.model")(db.sequelizer, Sequelize);
+db.athlete = require("./models/athlete.model")(db.sequelizer, Sequelize);
+
+db.school.belongsToMany(db.athlete, {
+    through: "athlete_schools",
+    foreignKey: "schoolId",
+    otherKey: "athleteId"
+});
+db.athlete.belongsToMany(db.school, {
+    through: "athlete_schools",
+    foreignKey: "athleteId",
+    otherKey: "schoolId"
+});
 
 
 db.role.belongsToMany(db.user, {
@@ -35,6 +50,5 @@ db.user.belongsToMany(db.role, {
     foreignKey: "userId",
     otherKey: "roleId"
 });
-
 
 module.exports = db;

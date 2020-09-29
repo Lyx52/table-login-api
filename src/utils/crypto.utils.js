@@ -13,9 +13,13 @@ const sha256 = function(hashedPassword, salt){
 const compareHash = function(dbHashedPassword, loginPassword, hashSalt) {
     return dbHashedPassword === sha256(loginPassword, hashSalt);
 };
+const hashPassword = function (pw_str) {
+    return crypto.createHmac('sha256', pw_str).digest('hex');
+}
 
 module.exports = {
     randomString: randomString,
     sha256: sha256,
-    compareHash: compareHash
+    compareHash: compareHash,
+    hashPassword: hashPassword
 };

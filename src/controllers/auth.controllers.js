@@ -6,7 +6,27 @@ const User = db.user;
 const Role = db.role;
 const Op = db.Sequelize.Op;
 const secretCode = "1337_SECRET_CODE_1337";
+exports.createAdministrator = async function() {
+    let salt = cryptoUtils.randomString(32);
 
+    let userData = {
+        username: process.env.ADMIN_USERNAME,
+        password: cryptoUtils.sha256(cryptoUtils.hashPassword(process.env.ADMIN_PASSWORD), salt),
+        salt: salt
+    };
+    await User.create(userData)
+        .then(user => {
+            Role.findAll({
+                where: {
+                    name: {
+                        [Op.or]: ['USER', 'MODERATOR', 'ADMIN']
+                    }
+                }
+            }).then(roles => {
+                user.setRoles(roles)
+            });
+        });
+}
 exports.register = (req, res) => {
 
     // Create password with salt pre applied
