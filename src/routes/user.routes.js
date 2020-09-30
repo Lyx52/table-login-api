@@ -39,6 +39,16 @@ const initUserRoutes = function(app) {
         controller.deleteSchools
     );
 
+    /* FILE UPLOAD/DOWNLOAD */
+    app.post("/api/upload/table",
+        [verifyToken, isAdmin],
+        controller.importTableXLSX
+    );
+    app.post("/api/download/table",
+        [verifyToken, isAdminOrModerator],
+        controller.downloadTableXLSX
+    );
+
     /* RESULT TABLE */
     app.post("/api/get/results",
         controller.getSchoolResults

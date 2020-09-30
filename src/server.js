@@ -7,6 +7,7 @@ const {initUserRoutes} = require("./routes/user.routes");
 const app = express();
 const authController = require('./controllers/auth.controllers');
 const mysql = require('mysql2/promise');
+const fileUpload = require('express-fileupload');
 
 const corsOptions = {
     orgin: process.env.ORGIN || "localhost:3000"
@@ -33,7 +34,7 @@ mysql.createConnection({
 // Setup express dependencies
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
-
+app.use(fileUpload())
 initAuthRoutes(app);
 initUserRoutes(app);
 // 404 Last route initialized

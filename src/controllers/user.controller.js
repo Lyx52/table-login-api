@@ -1,8 +1,9 @@
 const db = require("../db/db");
-const table = ['male', 'female', 'skolas'];
+const table = ['jaunieši', 'jaunietes', 'skolas'];
 const School = db.school;
 const Athlete = db.athlete;
-
+const xlsx = require('node-xlsx');
+const time = require('../utils/time.utils')
 exports.deleteRows = (req, res) => {
     if (req.body.rows) {
         console.log(req.body.rows)
@@ -59,25 +60,73 @@ exports.getTable = (req, res) => {
             });
     } else res.status(400).send({fulfilled: false, message: "Malformed request!"})
 }
-exports.getTableXLSX = (req, res) => {
-    if (req.body.tableID || req.body.runNr && req.body.tableID) {
-        let query = {
-            where: {
-                gender: table[req.body.tableID]
-            }
-        }
 
-        if (req.body.runNr > 0)
-            query.where.runNr = req.body.runNr;
+exports.importTableXLSX = (req, res) => {
+    console.log(req)
+    console.log(req.files)
+    res.status(200).json({fulfilled: true})
+}
+exports.downloadTableXLSX = async (req, res) => {
+    let outputTable = []
+    let searchBy = parseInt(req.body.genderID) >= 0 ? { where: { gender: table[req.body.genderID] } } : {};
 
-        Athlete.findAll(query)
-            .then(response => {
-                res.status(200).json({fulfilled: true, data: response})
-            })
-            .catch(err => {
-                res.status(500).send({fulfilled: false, message: `Request failed with error: ${err}`});
-            });
-    } else res.status(400).send({fulfilled: false, message: "Malformed request!"})
+    switch (parseInt(req.body.tableID)) {
+        case 0: {
+            outputTable.push(['Vārds  Uzvārds', 'Izglītības iestāde', 'Starta Nr.', 'Dzimums', 'Rezultāts'])
+            await School.findAll({})
+                .then(async (schoolList) => {
+                    await Athlete.findAll(searchBy)
+                        .then(response => {
+                            for (let index = 0; index < response.length; index++) {
+                                // Get result row data
+                                let result = response[index].dataValues;
+
+                                // Get school name from result row schoolID
+                                let schoolName = schoolList.filter(item => item.schoolID === result.schoolID)[0].dataValues.name
+
+                                // Add row to array
+                                let outputArray = [result.name, schoolName, result.runNr, result.gender]
+
+                                // If result > 0 add formatted result
+                                if (result.result)
+                                    outputArray.push(time.fromMilliseconds(result.result))
+
+                                outputTable.push(outputArray)
+                            }
+                        })
+                        .catch(error => res.status(400).json({fulfilled: false, message: "Invalid table"}))
+                })
+                .catch(err => {
+                    res.status(400).json({fulfilled: false, message: "Could not find school list"})
+                })
+        } break;
+        case 1: {
+            outputTable.push(['Skola', 'Skolas rezultāts'])
+
+            await createResultTable(searchBy)
+                .then(response =>{
+                    for (let index = 0; index < response.data.length; index++) {
+                        let result = response.data[index];
+                        outputTable.push([result.schoolName, time.fromMilliseconds(result.schoolResult)])
+                    }
+                })
+                .catch(error => res.status(400).json({fulfilled: false, message: "Invalid table"}))
+        } break;
+    }
+
+    // Setup column width
+    const options = {'!cols': []};
+    for (let index = 0; index < outputTable[0].length; index++)
+        options["!cols"].push({ wch: 20 })
+
+    //Excel file buffer
+    let buffer = xlsx.build([{name: "Rezultāti", data: outputTable}], options);
+
+    // Save temp file
+    const fs = require("fs");
+    fs.writeFile('./temp.xlsx', buffer, () => {
+        res.status(200).download('./temp.xlsx')
+    })
 }
 exports.insertRow = (req, res) => {
     if (req.body.rowData && req.body.tableID) {
@@ -151,16 +200,15 @@ function buildPromiseArray(data, func) {
     );
 }
 
-
 const updateResult = async function(data) {
     return await Athlete.update(
         {
             name: data.name,
             year: data.year,
-            athleteNr: data.athleteNr,
-            runNr: data.runNr,
-            result: data.result,
-            schoolID: data.schoolID
+            athleteNr: Math.abs(data.athleteNr),
+            runNr: Math.abs(data.runNr),
+            result: Math.abs(data.result),
+            schoolID: Math.abs(data.schoolID)
         },
         {
             where: {
@@ -170,48 +218,60 @@ const updateResult = async function(data) {
 };
 
 exports.getSchoolResults = async (req, res) => {
-    let schoolData, athleteData, resultData = [];
     let searchBy = parseInt(req.body.tableID) >= 0 ? { where: { gender: table[req.body.tableID] } } : {};
 
     if (searchBy) {
-        await School.findAll({})
+        await createResultTable(searchBy)
             .then(response => {
-                schoolData = response.map(item => item.dataValues)
-                Athlete.findAll(searchBy)
-                    .then(response => {
-                        for (let schoolIndex = 0; schoolIndex < schoolData.length; schoolIndex++) {
-                            // School id
-                            let schoolID = schoolData[schoolIndex].schoolID
-
-                            // Get athlete data from athlete model instance data and filter it by schoolid
-                            athleteData = (response.map(item => item.dataValues)).filter(item => item.schoolID ? item.schoolID === schoolID : false)
-
-                            // If athlete data exists, then calculate result of it
-                            if (athleteData) {
-                                resultData.push(calculateResult(athleteData, schoolID));
-                            }
-
-                            // If current schoolID is last in array send response
-                            if (schoolIndex === schoolData.length - 1) {
-                                res.status(200).json({fulfilled: true, data: resultData})
-                            }
-                        }
-                    })
-                    .catch(err => {
-                        console.log(err)
-                        res.status(500).json({fulfilled: false, message: "Athlete list not found!"})
-                    })
+                res.status(200).json(response)
             })
             .catch(err => {
                 console.log(err)
-                res.status(500).json({fulfilled: false, message: "School list not found!"})
+                res.status(400).json(err)
             })
     } else {
         res.status(400).json({fulfilled: false, message: "Malformed request!"})
     }
 }
 
-function calculateResult(combinedTable, schoolID) {
+function createResultTable(searchBy) {
+    let schoolData, athleteData;
+    return new Promise((resolve, reject) => {
+        School.findAll({})
+            .then(response => {
+                schoolData = response.map(item => item.dataValues)
+                Athlete.findAll(searchBy)
+                    .then(async (response) => {
+                        for (let schoolIndex = 0; schoolIndex < schoolData.length; schoolIndex++) {
+                            // School id
+                            let schoolID = schoolData[schoolIndex].schoolID
+                            let schoolName = schoolData[schoolIndex].name
+                            let resultData = [];
+
+                            // Get athlete data from athlete model instance data and filter it by schoolid
+                            athleteData = (response.map(item => item.dataValues)).filter(item => item.schoolID ? item.schoolID === schoolID : false)
+                            // If athlete data exists, then calculate result of it
+                            if (athleteData.length > 0) {
+                                resultData.push(calculateResult(athleteData, schoolID, schoolName));
+                            }
+                            // If current schoolID is last in array send response
+                            if (schoolIndex === schoolData.length - 1) {
+                                resolve({fulfilled: true, data: resultData});
+                            }
+                        }
+
+                    })
+                    .catch(err => {
+                        reject({fulfilled: false, message: "Athlete list not found!"});
+                    })
+            })
+            .catch(err => {
+                reject({fulfilled: false, message: "Athlete list not found!"});
+            })
+    })
+}
+
+function calculateResult(combinedTable, schoolID, schoolName) {
     combinedTable = combinedTable.filter(item => !item || item.result !== 0);
     if (combinedTable && combinedTable.length >= 6) {
         // Get result out of table data
@@ -231,6 +291,6 @@ function calculateResult(combinedTable, schoolID) {
             return a + b;
         }, 0);
         // Convert it to timestamp and return
-        return {schoolID: schoolID, schoolResult: sum}
-    } else return {schoolID: schoolID, schoolResult: 0};
+        return {schoolID: schoolID, schoolName: schoolName, schoolResult: sum}
+    } else return {schoolID: schoolID, schoolName: schoolName, schoolResult: 0};
 }
