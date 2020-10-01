@@ -78,7 +78,7 @@ exports.getTable = (req, res) => {
 }
 
 exports.importTableXLSX = (req, res) => {
-    if (req.files.file) {
+    if (req.files.file.data) {
         let file = req.files.file;
         const worksheet = xlsx.parse(file.data)
         for (let i = 0; i < worksheet.length; i++) {
@@ -109,22 +109,24 @@ exports.importTableXLSX = (req, res) => {
                         .then(response => {
                             schoolData = response.map(item => item.dataValues)
                             athleteData = data.map(item => {
-                                let school = schoolData.filter(school => school.name === item[schoolNameIndex])[0]
+                                let school = schoolData.filter(school => {
+                                    return school.name === item[schoolNameIndex]
+                                })
+                                let schoolID = school.length > 0 ? school[0].schoolID : 0;
 
-                                item[schoolNameIndex] = school ? school.schoolID : 0;
-                                console.log(item[header.indexOf('result')])
-                                let result = item[header.indexOf('result')] ? time.fromMilliseconds(parseInt(86400000 * item[header.indexOf('result')])) : 0;
-
-
-                                return {
-                                    'athleteNr': item[header.indexOf('athleteNr')],
-                                    'runNr': item[header.indexOf('runNr')],
-                                    'name': item[header.indexOf('name')],
-                                    'year': item[header.indexOf('year')],
-                                    'schoolID': item[schoolNameIndex],
-                                    'gender': gender,
-                                    'result': result
-                                };
+                                let result = item.length > 4 && item[header.indexOf('result')] ? parseInt(parseFloat(item[header.indexOf('result')]) * 86400000) : 0;
+                                if (item[header.indexOf('name')]) {
+                                    let data = {
+                                        'athleteNr': item[header.indexOf('athleteNr')],
+                                        'runNr': item[header.indexOf('runNr')],
+                                        'name': item[header.indexOf('name')],
+                                        'year': item[header.indexOf('year')],
+                                        'schoolID': schoolID,
+                                        'gender': gender,
+                                        'result': result
+                                    };
+                                    return data;
+                                }
                             })
                         })
                         .finally(async () => {
@@ -217,10 +219,9 @@ exports.downloadTableXLSX = async (req, res) => {
     })
 }
 exports.insertRow = (req, res) => {
-    if (req.body.rowData && req.body.tableID) {
+    if (req.body.rowData && req.body.tableID > -1) {
         let data = req.body.rowData;
         data.gender = table[req.body.tableID]
-        console.log(data)
         Athlete.create(data)
             .then(response => {
                 if (response)
