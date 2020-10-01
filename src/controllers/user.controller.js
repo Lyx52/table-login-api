@@ -1,9 +1,20 @@
 const db = require("../db/db");
-const table = ['jaunieši', 'jaunietes', 'skolas'];
+const table = ['jauniesi', 'jaunietes', 'skolas'];
 const School = db.school;
 const Athlete = db.athlete;
 const xlsx = require('node-xlsx');
 const time = require('../utils/time.utils')
+const {Op} = require('sequelize')
+
+const header_translation = {
+    'Nr. krosā': 'athleteNr',
+    'Skrējiena Nr.': 'runNr',
+    'Vārds, Uzvārds': 'name',
+    'Dz. gads': 'year',
+    'Skola': 'schoolID',
+    'Rezultāts': 'result'
+}
+
 exports.deleteRows = (req, res) => {
     if (req.body.rows) {
         console.log(req.body.rows)
@@ -41,6 +52,11 @@ exports.saveTable = async (req, res) => {
 }
 
 exports.getTable = (req, res) => {
+    Athlete.findAll({})
+        .then(r => {
+            for (let i = 0; i < r.length; i++)
+                console.log(r[i].dataValues);
+        })
     if (req.body.tableID || req.body.runNr && req.body.tableID) {
         let query = {
             where: {
@@ -62,14 +78,89 @@ exports.getTable = (req, res) => {
 }
 
 exports.importTableXLSX = (req, res) => {
-    console.log(req)
-    console.log(req.files)
-    res.status(200).json({fulfilled: true})
+    if (req.files.file) {
+        let file = req.files.file;
+        const worksheet = xlsx.parse(file.data)
+        for (let i = 0; i < worksheet.length; i++) {
+            let name = worksheet[i].name
+
+            if (name === 'jaunietes_nekartot' || name === 'jauniesi_nekartot') {
+
+                // Which table to insert into
+                let gender = name.replace('_nekartot', '');
+
+                // Whole worksheet
+                let worksheet_data = worksheet[i].data
+
+                // Header of table
+                let header = worksheet_data[5].map(item => {
+                    return header_translation[item]
+                })
+
+                // Field data
+                let data = worksheet_data.filter(item => worksheet_data.indexOf(item) > 5 && item.length > 4)
+                let schoolNameIndex = header.indexOf('schoolID')
+                let schoolPromises = data.map(item => Promise.resolve().then(() => createSchool(item[schoolNameIndex])));
+
+                let schoolData = []
+                fulfillPromiseArray(schoolPromises).finally(async () => {
+                    let athleteData = []
+                    await School.findAll({})
+                        .then(response => {
+                            schoolData = response.map(item => item.dataValues)
+                            athleteData = data.map(item => {
+                                let school = schoolData.filter(school => school.name === item[schoolNameIndex])[0]
+
+                                item[schoolNameIndex] = school ? school.schoolID : 0;
+                                console.log(item[header.indexOf('result')])
+                                let result = item[header.indexOf('result')] ? time.fromMilliseconds(parseInt(86400000 * item[header.indexOf('result')])) : 0;
+
+
+                                return {
+                                    'athleteNr': item[header.indexOf('athleteNr')],
+                                    'runNr': item[header.indexOf('runNr')],
+                                    'name': item[header.indexOf('name')],
+                                    'year': item[header.indexOf('year')],
+                                    'schoolID': item[schoolNameIndex],
+                                    'gender': gender,
+                                    'result': result
+                                };
+                            })
+                        })
+                        .finally(async () => {
+                            await fulfillPromiseArray(athleteData.map(item => Promise.resolve().then(() => createAthlete(item))))
+                                .finally(() => {
+                                    res.status(200).json({fulfilled: true, message: "Successfuly imported table!"})
+                                })
+                        })
+                })
+            }
+        }
+    } else res.status(400).json({fulfilled: false, message: "Invalid upload!"})
 }
+
+createAthlete = async function(athleteData) {
+    return await Athlete.create(athleteData);
+}
+
+createSchool = async function(schoolName) {
+    if (schoolName) {
+        return await School.create({name: schoolName}, {
+            where: {
+                [Op.and]: {
+                    name: {
+                        [Op.not]: schoolName
+                    }
+                }
+            }
+        })
+    }
+}
+
 exports.downloadTableXLSX = async (req, res) => {
     let outputTable = []
     let searchBy = parseInt(req.body.genderID) >= 0 ? { where: { gender: table[req.body.genderID] } } : {};
-
+    const options = {'!cols': []};
     switch (parseInt(req.body.tableID)) {
         case 0: {
             outputTable.push(['Vārds  Uzvārds', 'Izglītības iestāde', 'Starta Nr.', 'Dzimums', 'Rezultāts'])
@@ -85,7 +176,7 @@ exports.downloadTableXLSX = async (req, res) => {
                                 let schoolName = schoolList.filter(item => item.schoolID === result.schoolID)[0].dataValues.name
 
                                 // Add row to array
-                                let outputArray = [result.name, schoolName, result.runNr, result.gender]
+                                let outputArray = [result.name, schoolName, result.runNr, result.gender === 'jauniesi' ? 'jaunietis' : 'jauniete']
 
                                 // If result > 0 add formatted result
                                 if (result.result)
@@ -99,6 +190,7 @@ exports.downloadTableXLSX = async (req, res) => {
                 .catch(err => {
                     res.status(400).json({fulfilled: false, message: "Could not find school list"})
                 })
+            options["!cols"] = [{ wch: 30 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 15 }]
         } break;
         case 1: {
             outputTable.push(['Skola', 'Skolas rezultāts'])
@@ -111,13 +203,9 @@ exports.downloadTableXLSX = async (req, res) => {
                     }
                 })
                 .catch(error => res.status(400).json({fulfilled: false, message: "Invalid table"}))
+            options["!cols"] = [{ wch: 30 }, { wch: 15 }]
         } break;
     }
-
-    // Setup column width
-    const options = {'!cols': []};
-    for (let index = 0; index < outputTable[0].length; index++)
-        options["!cols"].push({ wch: 20 })
 
     //Excel file buffer
     let buffer = xlsx.build([{name: "Rezultāti", data: outputTable}], options);
@@ -187,11 +275,7 @@ exports.deleteSchools = async (req, res) => {
 }
 
 async function fulfillPromiseArray(promises) {
-    await Promise.all(promises)
-        .catch(error => {
-            console.log(`Updating rows caused an error: ${error}`)
-        })
-        .finally(() => {});
+    return await Promise.all(promises)
 }
 
 function buildPromiseArray(data, func) {
@@ -219,7 +303,6 @@ const updateResult = async function(data) {
 
 exports.getSchoolResults = async (req, res) => {
     let searchBy = parseInt(req.body.tableID) >= 0 ? { where: { gender: table[req.body.tableID] } } : {};
-
     if (searchBy) {
         await createResultTable(searchBy)
             .then(response => {
@@ -235,18 +318,18 @@ exports.getSchoolResults = async (req, res) => {
 }
 
 function createResultTable(searchBy) {
-    let schoolData, athleteData;
+    let schoolData, athleteData, resultData = [];
     return new Promise((resolve, reject) => {
         School.findAll({})
             .then(response => {
                 schoolData = response.map(item => item.dataValues)
+                console.log(schoolData)
                 Athlete.findAll(searchBy)
                     .then(async (response) => {
                         for (let schoolIndex = 0; schoolIndex < schoolData.length; schoolIndex++) {
                             // School id
                             let schoolID = schoolData[schoolIndex].schoolID
                             let schoolName = schoolData[schoolIndex].name
-                            let resultData = [];
 
                             // Get athlete data from athlete model instance data and filter it by schoolid
                             athleteData = (response.map(item => item.dataValues)).filter(item => item.schoolID ? item.schoolID === schoolID : false)
@@ -274,10 +357,12 @@ function createResultTable(searchBy) {
 function calculateResult(combinedTable, schoolID, schoolName) {
     combinedTable = combinedTable.filter(item => !item || item.result !== 0);
     if (combinedTable && combinedTable.length >= 6) {
+
         // Get result out of table data
         combinedTable = combinedTable.map(item => {
             return item.result
         });
+
         // Sort by result
         combinedTable.sort((a, b) => {
             return a - b
